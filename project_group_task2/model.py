@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
 print("=" * 60)
 print("  COS40007 | Group Task 2 | GitHub Actions ML Pipeline")
 print("=" * 60)
