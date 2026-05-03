@@ -1,0 +1,50 @@
+name: Train ML Model
+
+on:
+  push:
+    branches: [ main ]       # Runs on every push to main
+  pull_request:
+    branches: [ main ]       # Runs on pull requests targeting main
+  workflow_dispatch:          # Allows manual trigger from GitHub Actions UI
+
+jobs:
+  train:
+    runs-on: ubuntu-latest   # GitHub-hosted Linux runner
+
+    steps:
+
+      # Step 1 — Check out repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2 — Set up Python 3.11
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Step 3 — Cache pip packages for faster repeat runs
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Step 4 — Install dependencies from requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Step 5 — Train the model (generates model_results.png + metrics.txt)
+      - name: Train model
+        run: python model.py
+
+      # Step 6 — Upload both artefacts so they are downloadable from Actions UI
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-results
+          path: |
+            model_results.png
+            metrics.txt
