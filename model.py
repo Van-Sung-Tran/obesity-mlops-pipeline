@@ -1,256 +1,278 @@
-"""
-model.py — COS40007 Group Task 2 (Week 7 Studio)
-Obesity Level Prediction — GitHub Actions ML Pipeline Demo
-
-Pipeline:
-  1. Generate synthetic regression data
-  2. Train a neural network (MLP) with TensorFlow/Keras
-  3. Evaluate on held-out test set
-  4. Save model_results.png  (training curves + scatter + residuals)
-  5. Save metrics.txt        (all evaluation metrics)
-
-Both output files are picked up by the upload-artifact step in train.yml.
-"""
-
-import sys
 import os
-
-# ── Non-interactive backend BEFORE any other matplotlib import ────────────────
+import sys
+import io
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import numpy as np
+import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-import numpy as np
-
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-print("=" * 60)
-print("  COS40007 | Group Task 2 | GitHub Actions ML Pipeline")
-print("=" * 60)
-
-# ── TensorFlow import with version info ───────────────────────────────────────
+import yaml
+import json
+from datetime import datetime
+from io import StringIO
 import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Flatten, Conv1D, MaxPooling1D
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+from dvclive import Live
 
-print(f"  Python     : {sys.version.split()[0]}")
-print(f"  TensorFlow : {tf.__version__}")
-print(f"  NumPy      : {np.__version__}")
-print("=" * 60)
+# ── Load hyperparameters ───────────────────────────────────────────────────────
+with open("params.yaml") as f:
+    params = yaml.safe_load(f)
 
-# ── Reproducibility ───────────────────────────────────────────────────────────
-SEED = 42
-np.random.seed(SEED)
+EPOCHS        = params["model"]["epochs"]
+BATCH_SIZE    = params["model"]["batch_size"]
+LEARNING_RATE = params["model"]["learning_rate"]
+SEED          = params["data"]["random_seed"]
+TEST_SIZE     = params["data"]["test_size"]
+CNN_FILTERS   = params["model"]["cnn_filters"]
+KERNEL_SIZE   = params["model"]["kernel_size"]
+POOL_SIZE     = params["model"]["pool_size"]
+DENSE_1       = params["model"]["dense_units_1"]
+DENSE_2       = params["model"]["dense_units_2"]
+DENSE_3       = params["model"]["dense_units_3"]
+DROPOUT_1     = params["model"]["dropout_1"]
+DROPOUT_2     = params["model"]["dropout_2"]
+NUM_CLASSES   = params["model"]["num_classes"]
+ES_PATIENCE   = params["callbacks"]["early_stopping_patience"]
+LR_PATIENCE   = params["callbacks"]["reduce_lr_patience"]
+LR_FACTOR     = params["callbacks"]["reduce_lr_factor"]
+LR_MIN        = params["callbacks"]["reduce_lr_min_lr"]
+
+# ── Directories ────────────────────────────────────────────────────────────────
+artifacts_dir = "artifacts"
+os.makedirs(artifacts_dir, exist_ok=True)
+os.makedirs("models", exist_ok=True)
+
+print("=" * 50)
+print("STARTING 1D CNN CLASSIFICATION MODEL — TRAINING")
+print("Obesity Level Prediction — COS40007 Group Task 3")
+print("=" * 50)
+
+# ── Load data ──────────────────────────────────────────────────────────────────
+for path in ["train/train.csv", "test/test.csv"]:
+    if not os.path.exists(path):
+        print(f"ERROR: {path} not found!")
+        print("CWD:", os.getcwd())
+        print("Files:", os.listdir('.'))
+        sys.exit(1)
+
+print("\nLoading data...")
+data  = pd.read_csv("train/train.csv")
+dtest = pd.read_csv("test/test.csv")
+print(f"Train shape: {data.shape}  Test shape: {dtest.shape}")
+
+# ── Missing values report ──────────────────────────────────────────────────────
+print(f"Missing — train: {data.isnull().any().sum()}  "
+      f"test: {dtest.isnull().any().sum()}")
+
+train_test_data = [data, dtest]
+for dataset in train_test_data:
+    num_vars = [v for v in dataset.columns if dataset[v].dtype != 'O']
+    print(f"Numerical variables: {len(num_vars)}")
+
+# ── Drop constant columns ──────────────────────────────────────────────────────
+suspiciousData = [col for col in data.columns
+                  if data[col].nunique() == 1]
+if suspiciousData:
+    print(f"Dropping {len(suspiciousData)} constant columns")
+    for dataset in train_test_data:
+        dataset.drop(suspiciousData, axis=1, inplace=True)
+else:
+    print("No constant columns found")
+
+# ── Encode target column ───────────────────────────────────────────────────────
+TARGET_COL = "NObeyesdad"
+le_target  = LabelEncoder()
+data[TARGET_COL]  = le_target.fit_transform(data[TARGET_COL].astype(str))
+dtest[TARGET_COL] = le_target.transform(dtest[TARGET_COL].astype(str))
+print(f"Target classes: {list(le_target.classes_)}")
+
+# Save label encoder classes
+label_classes = list(le_target.classes_)
+
+# ── Encode categorical variables (frequency encoding — matches tutor approach) ─
+cat_vars = [v for v in data.columns
+            if data[v].dtype == 'O' and v != TARGET_COL]
+print(f"Categorical variables: {len(cat_vars)}")
+
+if cat_vars:
+    for var in cat_vars:
+        freq = data[var].value_counts().to_dict()
+        data[f"{var}_freq"]  = data[var].map(freq)
+        dtest[f"{var}_freq"] = dtest[var].map(freq).fillna(0)
+    data  = data.drop(cat_vars, axis=1)
+    dtest = dtest.drop(cat_vars, axis=1)
+    print("Categorical variables frequency-encoded")
+
+# ── Features and target ────────────────────────────────────────────────────────
+X = data.drop(TARGET_COL, axis=1).apply(pd.to_numeric, errors='coerce')
+X = X.fillna(X.mean()).fillna(0).values
+y = data[TARGET_COL].values
+
+print(f"X: {X.shape}  y: {y.shape}")
+
+# Save feature column names so evaluate.py can align test data exactly
+feature_columns = list(data.drop(TARGET_COL, axis=1).columns)
+with open("artifacts/feature_columns.json", "w", encoding='utf-8') as f:
+    json.dump({
+        "feature_columns": feature_columns,
+        "label_classes":   label_classes,
+        "num_classes":     NUM_CLASSES,
+    }, f, indent=4)
+print(f"Saved: artifacts/feature_columns.json ({len(feature_columns)} features)")
+
+# ── StandardScaler ─────────────────────────────────────────────────────────────
+from sklearn.preprocessing import StandardScaler
+import joblib
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+joblib.dump(scaler, "artifacts/scaler.pkl")
+print("Saved: artifacts/scaler.pkl")
+
+# ── Train / test split ─────────────────────────────────────────────────────────
+X_train, X_test_arr, y_train, y_test = train_test_split(
+    X, y, test_size=TEST_SIZE, random_state=SEED, stratify=y
+)
+print(f"X_train: {X_train.shape}  X_test: {X_test_arr.shape}")
+
+# ── Reshape for 1D CNN: (samples, features, 1) ────────────────────────────────
+X_train_cnn = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+X_test_cnn  = X_test_arr.reshape(X_test_arr.shape[0], X_test_arr.shape[1], 1)
+print(f"CNN shapes — train: {X_train_cnn.shape}  test: {X_test_cnn.shape}")
+
+# ── Save split data for evaluate.py ───────────────────────────────────────────
+np.save("artifacts/X_test_cnn.npy", X_test_cnn)
+np.save("artifacts/y_test.npy",     y_test)
+print("Saved: artifacts/X_test_cnn.npy  artifacts/y_test.npy")
+
+# ── Build 1D CNN model ─────────────────────────────────────────────────────────
 tf.random.set_seed(SEED)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 1 — Generate synthetic dataset
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n[1/5] Generating synthetic dataset...")
-
-N_SAMPLES  = 600
-N_FEATURES = 10
-
-X = np.random.randn(N_SAMPLES, N_FEATURES).astype(np.float32)
-
-# Non-linear target: weighted sum + interaction + quadratic + noise
-weights = np.array([3.0, -1.5, 0.8, 2.0, -0.5, 1.2, -2.2, 0.6, 1.8, -1.0])
-y = (
-    X @ weights
-    + 0.6 * X[:, 0] ** 2
-    - 0.4 * X[:, 1] * X[:, 2]
-    + 0.3 * np.sin(X[:, 3])
-    + np.random.randn(N_SAMPLES) * 0.7
-).astype(np.float32)
-
-# Stratified-style split: 70 / 15 / 15
-n_train = int(0.70 * N_SAMPLES)   # 420
-n_val   = int(0.15 * N_SAMPLES)   # 90
-# test   = remaining 90
-
-X_train, y_train = X[:n_train],              y[:n_train]
-X_val,   y_val   = X[n_train:n_train+n_val], y[n_train:n_train+n_val]
-X_test,  y_test  = X[n_train+n_val:],        y[n_train+n_val:]
-
-print(f"  Train : {X_train.shape[0]} samples | "
-      f"Val : {X_val.shape[0]} | Test : {X_test.shape[0]}")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 2 — Build model
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n[2/5] Building neural network...")
-
-model = keras.Sequential(
-    [
-        layers.Input(shape=(N_FEATURES,), name="input"),
-        layers.Dense(128, activation="relu", name="hidden_1"),
-        layers.Dense(64,  activation="relu", name="hidden_2"),
-        layers.Dense(32,  activation="relu", name="hidden_3"),
-        layers.Dense(1,                      name="output"),
-    ],
-    name="obesity_regression_net",
-)
+model = Sequential([
+    Conv1D(CNN_FILTERS[0], kernel_size=KERNEL_SIZE, activation='relu',
+           input_shape=(X_train_cnn.shape[1], 1), padding='same'),
+    MaxPooling1D(pool_size=POOL_SIZE),
+    Conv1D(CNN_FILTERS[1], kernel_size=KERNEL_SIZE, activation='relu',
+           padding='same'),
+    MaxPooling1D(pool_size=POOL_SIZE),
+    Conv1D(CNN_FILTERS[2], kernel_size=KERNEL_SIZE, activation='relu',
+           padding='same'),
+    MaxPooling1D(pool_size=POOL_SIZE),
+    Flatten(),
+    Dense(DENSE_1, activation='relu'),
+    Dropout(DROPOUT_1),
+    Dense(DENSE_2, activation='relu'),
+    Dropout(DROPOUT_2),
+    Dense(DENSE_3, activation='relu'),
+    Dense(NUM_CLASSES, activation='softmax'),
+])
 
 model.compile(
-    optimizer=keras.optimizers.Adam(learning_rate=0.003),
-    loss="mse",
-    metrics=["mae"],
+    loss='sparse_categorical_crossentropy',
+    optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE),
+    metrics=['accuracy'],
 )
 
 model.summary()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 3 — Train
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n[3/5] Training...")
+# Capture summary to string
+stream = StringIO()
+model.summary(print_fn=lambda x: stream.write(x + '\n'))
+summary_str = stream.getvalue()
+with open('model_summary.txt', 'w', encoding='utf-8') as f:
+    f.write(summary_str)
+print("Saved: model_summary.txt")
 
-EPOCHS     = 15
-BATCH_SIZE = 32
+# ── Callbacks ──────────────────────────────────────────────────────────────────
+callbacks = [
+    EarlyStopping(monitor='val_loss', patience=ES_PATIENCE,
+                  restore_best_weights=True, verbose=1),
+    ReduceLROnPlateau(monitor='val_loss', factor=LR_FACTOR,
+                      patience=LR_PATIENCE, min_lr=LR_MIN, verbose=1),
+]
 
-early_stop = keras.callbacks.EarlyStopping(
-    monitor="val_loss",
-    patience=5,
-    restore_best_weights=True,
-    verbose=1,
-)
+# ── Train with dvclive ─────────────────────────────────────────────────────────
+print("\nTraining model...")
+with Live(dir="dvclive", report="html") as live:
+    live.log_param("epochs",       EPOCHS)
+    live.log_param("batch_size",   BATCH_SIZE)
+    live.log_param("lr",           LEARNING_RATE)
+    live.log_param("cnn_filters",  str(CNN_FILTERS))
+    live.log_param("num_classes",  NUM_CLASSES)
 
-history = model.fit(
-    X_train, y_train,
-    validation_data=(X_val, y_val),
-    epochs=EPOCHS,
-    batch_size=BATCH_SIZE,
-    callbacks=[early_stop],
-    verbose=1,
-)
+    history = model.fit(
+        X_train_cnn, y_train,
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
+        validation_data=(X_test_cnn, y_test),
+        callbacks=callbacks,
+        verbose=1,
+    )
 
-epochs_run = len(history.history["loss"])
-print(f"\n  Training stopped at epoch {epochs_run}/{EPOCHS}")
+    for i in range(len(history.history['loss'])):
+        live.log_metric("train_loss",     history.history['loss'][i])
+        live.log_metric("val_loss",       history.history['val_loss'][i])
+        live.log_metric("train_accuracy", history.history['accuracy'][i])
+        live.log_metric("val_accuracy",   history.history['val_accuracy'][i])
+        live.next_step()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 4 — Evaluate
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n[4/5] Evaluating on test set...")
+print("Training completed!")
 
-test_mse, test_mae = model.evaluate(X_test, y_test, verbose=0)
-y_pred = model.predict(X_test, verbose=0).flatten()
+# ── Save model ─────────────────────────────────────────────────────────────────
+model.save("models/model.keras")
+print("Saved: models/model.keras")
 
-ss_res  = float(np.sum((y_test - y_pred) ** 2))
-ss_tot  = float(np.sum((y_test - np.mean(y_test)) ** 2))
-r2      = 1.0 - ss_res / ss_tot
-rmse    = float(np.sqrt(test_mse))
-test_mae = float(test_mae)
-test_mse = float(test_mse)
+# ── Training history plots ─────────────────────────────────────────────────────
+fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+axes[0].plot(history.history['loss'],     label='Train Loss')
+axes[0].plot(history.history['val_loss'], label='Val Loss')
+axes[0].set_title('Model Loss')
+axes[0].set_xlabel('Epoch')
+axes[0].set_ylabel('Loss')
+axes[0].legend()
+axes[0].grid(True)
 
-best_val_loss  = float(min(history.history["val_loss"]))
-final_val_loss = float(history.history["val_loss"][-1])
-final_trn_loss = float(history.history["loss"][-1])
-
-print(f"  MSE   : {test_mse:.4f}")
-print(f"  RMSE  : {rmse:.4f}")
-print(f"  MAE   : {test_mae:.4f}")
-print(f"  R²    : {r2:.4f}")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 5a — Save metrics.txt
-# ─────────────────────────────────────────────────────────────────────────────
-print("\n[5/5] Saving artefacts...")
-
-metrics_content = f"""\
-============================================================
-  COS40007 Group Task 2 — Pipeline Metrics
-  Obesity Level Prediction System (Neural Network Demo)
-============================================================
-  Model name     : {model.name}
-  Architecture   : {N_FEATURES} → 128 → 64 → 32 → 1 (ReLU)
-  Dataset        : Synthetic regression (N={N_SAMPLES})
-  Features       : {N_FEATURES}
-  Epochs trained : {epochs_run} / {EPOCHS} (EarlyStopping)
-  Batch size     : {BATCH_SIZE}
-  Split          : 70 / 15 / 15  (train / val / test)
-------------------------------------------------------------
-  TEST SET RESULTS
-  MSE            : {test_mse:.4f}
-  RMSE           : {rmse:.4f}
-  MAE            : {test_mae:.4f}
-  R²             : {r2:.4f}
-------------------------------------------------------------
-  TRAINING SUMMARY
-  Final train loss    : {final_trn_loss:.4f}
-  Final val loss      : {final_val_loss:.4f}
-  Best val loss (ESt) : {best_val_loss:.4f}
-============================================================
-"""
-
-with open("metrics.txt", "w") as f:
-    f.write(metrics_content)
-
-print("  ✓ metrics.txt saved")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STEP 5b — Save model_results.png
-# ─────────────────────────────────────────────────────────────────────────────
-fig, axes = plt.subplots(1, 3, figsize=(16, 5))
-fig.suptitle(
-    "COS40007 Group Task 2 — ML Pipeline Results\n"
-    "Obesity Level Prediction System  |  Neural Network Regression",
-    fontsize=13, fontweight="bold", y=1.02,
-)
-
-# ── Plot 1: Loss curves ───────────────────────────────────────────────────────
-ax = axes[0]
-epochs_x = range(1, epochs_run + 1)
-ax.plot(epochs_x, history.history["loss"],     color="#2E75B6", lw=2, label="Train Loss")
-ax.plot(epochs_x, history.history["val_loss"], color="#E05C2A", lw=2, ls="--", label="Val Loss")
-ax.axvline(
-    x=epochs_run - early_stop.patience if early_stop.stopped_epoch > 0 else epochs_run,
-    color="grey", ls=":", lw=1, label="Best epoch"
-)
-ax.set_title("Training & Validation Loss (MSE)", fontweight="bold")
-ax.set_xlabel("Epoch")
-ax.set_ylabel("MSE Loss")
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.3)
-
-# ── Plot 2: Predicted vs Actual ───────────────────────────────────────────────
-ax = axes[1]
-ax.scatter(y_test, y_pred, alpha=0.6, color="#2E75B6",
-           edgecolors="white", lw=0.4, s=45, label="Predictions")
-lo = min(float(y_test.min()), float(y_pred.min()))
-hi = max(float(y_test.max()), float(y_pred.max()))
-ax.plot([lo, hi], [lo, hi], "r--", lw=1.5, label="Perfect fit")
-ax.set_title("Predicted vs Actual (Test Set)", fontweight="bold")
-ax.set_xlabel("Actual Values")
-ax.set_ylabel("Predicted Values")
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.3)
-ax.text(0.05, 0.93, f"R² = {r2:.3f}", transform=ax.transAxes,
-        fontsize=11, fontweight="bold", color="#1F497D",
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="#D5E8F0", alpha=0.85))
-
-# ── Plot 3: Residuals ─────────────────────────────────────────────────────────
-ax = axes[2]
-residuals = y_test - y_pred
-ax.scatter(y_pred, residuals, alpha=0.6, color="#5B9D5B",
-           edgecolors="white", lw=0.4, s=45)
-ax.axhline(0, color="red", ls="--", lw=1.5, label="Zero residual")
-ax.set_title("Residual Plot (Test Set)", fontweight="bold")
-ax.set_xlabel("Predicted Values")
-ax.set_ylabel("Residuals  (Actual − Predicted)")
-ax.legend(fontsize=9)
-ax.grid(True, alpha=0.3)
-ax.text(0.05, 0.93, f"RMSE = {rmse:.3f}", transform=ax.transAxes,
-        fontsize=11, fontweight="bold", color="#1F497D",
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="#D5E8F0", alpha=0.85))
+axes[1].plot(history.history['accuracy'],     label='Train Accuracy')
+axes[1].plot(history.history['val_accuracy'], label='Val Accuracy')
+axes[1].set_title('Model Accuracy')
+axes[1].set_xlabel('Epoch')
+axes[1].set_ylabel('Accuracy')
+axes[1].legend()
+axes[1].grid(True)
 
 plt.tight_layout()
-plt.savefig("model_results.png", dpi=150, bbox_inches="tight")
+plt.savefig('model_results.png', dpi=300, bbox_inches='tight')
+plt.savefig(f'{artifacts_dir}/model_results.png', dpi=300, bbox_inches='tight')
 plt.close()
+print("Saved: model_results.png")
 
-print("  ✓ model_results.png saved")
+# ── Save training history for evaluate.py ──────────────────────────────────────
+history_dict = {
+    "loss":         [float(v) for v in history.history['loss']],
+    "val_loss":     [float(v) for v in history.history['val_loss']],
+    "accuracy":     [float(v) for v in history.history['accuracy']],
+    "val_accuracy": [float(v) for v in history.history['val_accuracy']],
+}
+with open("artifacts/training_history.json", "w", encoding='utf-8') as f:
+    json.dump(history_dict, f, indent=4)
+print("Saved: artifacts/training_history.json")
 
-# ── Final verification ────────────────────────────────────────────────────────
-assert os.path.exists("metrics.txt"),       "ERROR: metrics.txt not found!"
-assert os.path.exists("model_results.png"), "ERROR: model_results.png not found!"
+# ── Save data info ─────────────────────────────────────────────────────────────
+data_info = {
+    "train_samples":             int(X_train.shape[0]),
+    "test_samples":              int(X_test_arr.shape[0]),
+    "features_count":            int(X.shape[1]),
+    "categorical_vars_original": len(cat_vars),
+    "constant_features_dropped": len(suspiciousData),
+    "num_classes":               NUM_CLASSES,
+    "target_classes":            label_classes,
+}
+with open('data_info.json', 'w', encoding='utf-8') as f:
+    json.dump(data_info, f, indent=4)
+print("Saved: data_info.json")
 
-print("\n  ✓ Both artefacts verified on disk.")
-print("  ✓ Pipeline complete — ready for artifact upload.")
-print("=" * 60)
+print("\nmodel.py complete — run evaluate.py next")

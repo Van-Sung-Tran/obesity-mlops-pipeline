@@ -8,3 +8,6 @@ dvc
 dvc-gdrive
 dvclive
 nvidia-ml-py
+scipy
+joblib
+pyyaml

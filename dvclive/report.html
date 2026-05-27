@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="5">
+    <title>DVC Plot</title>
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.20.2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.18.2"></script>
+    
+    <style>
+        table {
+            border-spacing: 15px;
+        }
+    </style>
+</head>
+<body>
+    
+        <div id="params_yaml" style="text-align: center; padding: 10x">
+            <p>params_yaml</p>
+            <div style="display: flex;justify-content: center;">
+                <table>
+<thead>
+<tr><th style="text-align: right;">  epochs</th><th style="text-align: right;">  batch_size</th><th style="text-align: right;">    lr</th><th>cnn_filters  </th><th style="text-align: right;">  num_classes</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: right;">      15</td><td style="text-align: right;">          32</td><td style="text-align: right;">0.0001</td><td>[64, 128, 64]</td><td style="text-align: right;">            7</td></tr>
+</tbody>
+</table>
+            </div>
+        </div>
+
+        <div id="metrics_json" style="text-align: center; padding: 10x">
+            <p>metrics_json</p>
+            <div style="display: flex;justify-content: center;">
+                <table>
+<thead>
+<tr><th style="text-align: right;">  train_loss</th><th style="text-align: right;">  val_loss</th><th style="text-align: right;">  train_accuracy</th><th style="text-align: right;">  val_accuracy</th><th style="text-align: right;">  step</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align: right;">    0.808689</td><td style="text-align: right;">  0.710902</td><td style="text-align: right;">        0.677104</td><td style="text-align: right;">      0.716895</td><td style="text-align: right;">    14</td></tr>
+</tbody>
+</table>
+            </div>
+        </div>
+
+    <div id = "static_val_accuracy">
+        <script type = "text/javascript">
+            var spec = {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "data": {"values": [{"step": "0", "val_accuracy": "0.15296803414821625", "rev": "workspace"}, {"step": "1", "val_accuracy": "0.17123287916183472", "rev": "workspace"}, {"step": "2", "val_accuracy": "0.27625569701194763", "rev": "workspace"}, {"step": "3", "val_accuracy": "0.4383561611175537", "rev": "workspace"}, {"step": "4", "val_accuracy": "0.5410959124565125", "rev": "workspace"}, {"step": "5", "val_accuracy": "0.5365296602249146", "rev": "workspace"}, {"step": "6", "val_accuracy": "0.5570776462554932", "rev": "workspace"}, {"step": "7", "val_accuracy": "0.586758017539978", "rev": "workspace"}, {"step": "8", "val_accuracy": "0.6187214851379395", "rev": "workspace"}, {"step": "9", "val_accuracy": "0.6506849527359009", "rev": "workspace"}, {"step": "10", "val_accuracy": "0.6621004343032837", "rev": "workspace"}, {"step": "11", "val_accuracy": "0.6780821681022644", "rev": "workspace"}, {"step": "12", "val_accuracy": "0.689497709274292", "rev": "workspace"}, {"step": "13", "val_accuracy": "0.7100456357002258", "rev": "workspace"}, {"step": "14", "val_accuracy": "0.7168949842453003", "rev": "workspace"}]}, "title": {"text": "val_accuracy", "anchor": "middle"}, "width": 300, "height": 300, "params": [{"name": "smooth", "value": 0.001, "bind": {"input": "range", "min": 0.001, "max": 1, "step": 0.001}}], "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "color": {"field": "rev", "scale": {"domain": ["workspace"], "range": ["#945dd6"]}}, "strokeDash": {}}, "layer": [{"layer": [{"params": [{"name": "grid", "select": "interval", "bind": "scales"}], "mark": "line"}, {"transform": [{"filter": {"param": "hover", "empty": false}}], "mark": "point"}], "encoding": {"y": {"field": "val_accuracy", "type": "quantitative", "title": "val_accuracy", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}, "transform": [{"loess": "val_accuracy", "on": "step", "groupby": ["rev"], "bandwidth": {"signal": "smooth"}}]}, {"mark": {"type": "line", "opacity": 0.2}, "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "y": {"field": "val_accuracy", "type": "quantitative", "title": "val_accuracy", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"mark": {"type": "circle", "size": 10}, "encoding": {"x": {"aggregate": "max", "field": "step", "type": "quantitative", "title": "step"}, "y": {"aggregate": {"argmax": "step"}, "field": "val_accuracy", "type": "quantitative", "title": "val_accuracy", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"transform": [{"calculate": "datum.rev", "as": "pivot_field"}, {"pivot": "pivot_field", "op": "mean", "value": "val_accuracy", "groupby": ["step"]}], "mark": {"type": "rule", "tooltip": {"content": "data"}, "stroke": "grey"}, "encoding": {"opacity": {"condition": {"value": 0.3, "param": "hover", "empty": false}, "value": 0}}, "params": [{"name": "hover", "select": {"type": "point", "fields": ["step"], "nearest": true, "on": "mouseover", "clear": "mouseout"}}]}]};
+            vegaEmbed('#static_val_accuracy', spec);
+        </script>
+    </div>
+    
+
+    <div id = "static_train_accuracy">
+        <script type = "text/javascript">
+            var spec = {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "data": {"values": [{"step": "0", "train_accuracy": "0.14774951338768005", "rev": "workspace"}, {"step": "1", "train_accuracy": "0.15655577182769775", "rev": "workspace"}, {"step": "2", "train_accuracy": "0.20254403352737427", "rev": "workspace"}, {"step": "3", "train_accuracy": "0.27397260069847107", "rev": "workspace"}, {"step": "4", "train_accuracy": "0.3757338523864746", "rev": "workspace"}, {"step": "5", "train_accuracy": "0.43150684237480164", "rev": "workspace"}, {"step": "6", "train_accuracy": "0.46771037578582764", "rev": "workspace"}, {"step": "7", "train_accuracy": "0.49706459045410156", "rev": "workspace"}, {"step": "8", "train_accuracy": "0.5215263962745667", "rev": "workspace"}, {"step": "9", "train_accuracy": "0.5459882616996765", "rev": "workspace"}, {"step": "10", "train_accuracy": "0.5831702351570129", "rev": "workspace"}, {"step": "11", "train_accuracy": "0.5939334630966187", "rev": "workspace"}, {"step": "12", "train_accuracy": "0.6242661476135254", "rev": "workspace"}, {"step": "13", "train_accuracy": "0.6232876777648926", "rev": "workspace"}, {"step": "14", "train_accuracy": "0.6771036982536316", "rev": "workspace"}]}, "title": {"text": "train_accuracy", "anchor": "middle"}, "width": 300, "height": 300, "params": [{"name": "smooth", "value": 0.001, "bind": {"input": "range", "min": 0.001, "max": 1, "step": 0.001}}], "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "color": {"field": "rev", "scale": {"domain": ["workspace"], "range": ["#945dd6"]}}, "strokeDash": {}}, "layer": [{"layer": [{"params": [{"name": "grid", "select": "interval", "bind": "scales"}], "mark": "line"}, {"transform": [{"filter": {"param": "hover", "empty": false}}], "mark": "point"}], "encoding": {"y": {"field": "train_accuracy", "type": "quantitative", "title": "train_accuracy", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}, "transform": [{"loess": "train_accuracy", "on": "step", "groupby": ["rev"], "bandwidth": {"signal": "smooth"}}]}, {"mark": {"type": "line", "opacity": 0.2}, "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "y": {"field": "train_accuracy", "type": "quantitative", "title": "train_accuracy", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"mark": {"type": "circle", "size": 10}, "encoding": {"x": {"aggregate": "max", "field": "step", "type": "quantitative", "title": "step"}, "y": {"aggregate": {"argmax": "step"}, "field": "train_accuracy", "type": "quantitative", "title": "train_accuracy", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"transform": [{"calculate": "datum.rev", "as": "pivot_field"}, {"pivot": "pivot_field", "op": "mean", "value": "train_accuracy", "groupby": ["step"]}], "mark": {"type": "rule", "tooltip": {"content": "data"}, "stroke": "grey"}, "encoding": {"opacity": {"condition": {"value": 0.3, "param": "hover", "empty": false}, "value": 0}}, "params": [{"name": "hover", "select": {"type": "point", "fields": ["step"], "nearest": true, "on": "mouseover", "clear": "mouseout"}}]}]};
+            vegaEmbed('#static_train_accuracy', spec);
+        </script>
+    </div>
+    
+
+    <div id = "static_val_loss">
+        <script type = "text/javascript">
+            var spec = {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "data": {"values": [{"step": "0", "val_loss": "1.9303503036499023", "rev": "workspace"}, {"step": "1", "val_loss": "1.908181071281433", "rev": "workspace"}, {"step": "2", "val_loss": "1.861240029335022", "rev": "workspace"}, {"step": "3", "val_loss": "1.7792119979858398", "rev": "workspace"}, {"step": "4", "val_loss": "1.6450068950653076", "rev": "workspace"}, {"step": "5", "val_loss": "1.4713687896728516", "rev": "workspace"}, {"step": "6", "val_loss": "1.2952853441238403", "rev": "workspace"}, {"step": "7", "val_loss": "1.1631063222885132", "rev": "workspace"}, {"step": "8", "val_loss": "1.049500823020935", "rev": "workspace"}, {"step": "9", "val_loss": "0.9779539704322815", "rev": "workspace"}, {"step": "10", "val_loss": "0.924270510673523", "rev": "workspace"}, {"step": "11", "val_loss": "0.8526058197021484", "rev": "workspace"}, {"step": "12", "val_loss": "0.8208468556404114", "rev": "workspace"}, {"step": "13", "val_loss": "0.7687984108924866", "rev": "workspace"}, {"step": "14", "val_loss": "0.7109022736549377", "rev": "workspace"}]}, "title": {"text": "val_loss", "anchor": "middle"}, "width": 300, "height": 300, "params": [{"name": "smooth", "value": 0.001, "bind": {"input": "range", "min": 0.001, "max": 1, "step": 0.001}}], "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "color": {"field": "rev", "scale": {"domain": ["workspace"], "range": ["#945dd6"]}}, "strokeDash": {}}, "layer": [{"layer": [{"params": [{"name": "grid", "select": "interval", "bind": "scales"}], "mark": "line"}, {"transform": [{"filter": {"param": "hover", "empty": false}}], "mark": "point"}], "encoding": {"y": {"field": "val_loss", "type": "quantitative", "title": "val_loss", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}, "transform": [{"loess": "val_loss", "on": "step", "groupby": ["rev"], "bandwidth": {"signal": "smooth"}}]}, {"mark": {"type": "line", "opacity": 0.2}, "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "y": {"field": "val_loss", "type": "quantitative", "title": "val_loss", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"mark": {"type": "circle", "size": 10}, "encoding": {"x": {"aggregate": "max", "field": "step", "type": "quantitative", "title": "step"}, "y": {"aggregate": {"argmax": "step"}, "field": "val_loss", "type": "quantitative", "title": "val_loss", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"transform": [{"calculate": "datum.rev", "as": "pivot_field"}, {"pivot": "pivot_field", "op": "mean", "value": "val_loss", "groupby": ["step"]}], "mark": {"type": "rule", "tooltip": {"content": "data"}, "stroke": "grey"}, "encoding": {"opacity": {"condition": {"value": 0.3, "param": "hover", "empty": false}, "value": 0}}, "params": [{"name": "hover", "select": {"type": "point", "fields": ["step"], "nearest": true, "on": "mouseover", "clear": "mouseout"}}]}]};
+            vegaEmbed('#static_val_loss', spec);
+        </script>
+    </div>
+    
+
+    <div id = "static_train_loss">
+        <script type = "text/javascript">
+            var spec = {"$schema": "https://vega.github.io/schema/vega-lite/v5.json", "data": {"values": [{"step": "0", "train_loss": "1.9403215646743774", "rev": "workspace"}, {"step": "1", "train_loss": "1.9265046119689941", "rev": "workspace"}, {"step": "2", "train_loss": "1.8976093530654907", "rev": "workspace"}, {"step": "3", "train_loss": "1.841348648071289", "rev": "workspace"}, {"step": "4", "train_loss": "1.7472076416015625", "rev": "workspace"}, {"step": "5", "train_loss": "1.6068378686904907", "rev": "workspace"}, {"step": "6", "train_loss": "1.438151478767395", "rev": "workspace"}, {"step": "7", "train_loss": "1.2996207475662231", "rev": "workspace"}, {"step": "8", "train_loss": "1.1806776523590088", "rev": "workspace"}, {"step": "9", "train_loss": "1.1118377447128296", "rev": "workspace"}, {"step": "10", "train_loss": "1.0336586236953735", "rev": "workspace"}, {"step": "11", "train_loss": "0.9814000129699707", "rev": "workspace"}, {"step": "12", "train_loss": "0.9330824613571167", "rev": "workspace"}, {"step": "13", "train_loss": "0.8814762234687805", "rev": "workspace"}, {"step": "14", "train_loss": "0.8086891174316406", "rev": "workspace"}]}, "title": {"text": "train_loss", "anchor": "middle"}, "width": 300, "height": 300, "params": [{"name": "smooth", "value": 0.001, "bind": {"input": "range", "min": 0.001, "max": 1, "step": 0.001}}], "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "color": {"field": "rev", "scale": {"domain": ["workspace"], "range": ["#945dd6"]}}, "strokeDash": {}}, "layer": [{"layer": [{"params": [{"name": "grid", "select": "interval", "bind": "scales"}], "mark": "line"}, {"transform": [{"filter": {"param": "hover", "empty": false}}], "mark": "point"}], "encoding": {"y": {"field": "train_loss", "type": "quantitative", "title": "train_loss", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}, "transform": [{"loess": "train_loss", "on": "step", "groupby": ["rev"], "bandwidth": {"signal": "smooth"}}]}, {"mark": {"type": "line", "opacity": 0.2}, "encoding": {"x": {"field": "step", "type": "quantitative", "title": "step"}, "y": {"field": "train_loss", "type": "quantitative", "title": "train_loss", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"mark": {"type": "circle", "size": 10}, "encoding": {"x": {"aggregate": "max", "field": "step", "type": "quantitative", "title": "step"}, "y": {"aggregate": {"argmax": "step"}, "field": "train_loss", "type": "quantitative", "title": "train_loss", "scale": {"zero": false}}, "color": {"field": "rev", "type": "nominal"}}}, {"transform": [{"calculate": "datum.rev", "as": "pivot_field"}, {"pivot": "pivot_field", "op": "mean", "value": "train_loss", "groupby": ["step"]}], "mark": {"type": "rule", "tooltip": {"content": "data"}, "stroke": "grey"}, "encoding": {"opacity": {"condition": {"value": 0.3, "param": "hover", "empty": false}, "value": 0}}, "params": [{"name": "hover", "select": {"type": "point", "fields": ["step"], "nearest": true, "on": "mouseover", "clear": "mouseout"}}]}]};
+            vegaEmbed('#static_train_loss', spec);
+        </script>
+    </div>
+    
+</body>
+</html>

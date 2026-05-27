@@ -1,0 +1,5 @@
+epochs: 15
+batch_size: 32
+lr: 0.0001
+cnn_filters: '[64, 128, 64]'
+num_classes: 7
