@@ -1,0 +1,17 @@
+{
+    "train_samples": 1022,
+    "test_samples": 438,
+    "features_count": 16,
+    "categorical_vars_original": 0,
+    "constant_features_dropped": 0,
+    "num_classes": 7,
+    "target_classes": [
+        "Insufficient_Weight",
+        "Normal_Weight",
+        "Obesity_Type_I",
+        "Obesity_Type_II",
+        "Obesity_Type_III",
+        "Overweight_Level_I",
+        "Overweight_Level_II"
+    ]
+}

@@ -1,0 +1,20 @@
+{
+    "timestamp": "2026-05-28T04:28:45.710965",
+    "model_type": "1D CNN Classification",
+    "test_size": 0.3,
+    "batch_size": 32,
+    "epochs": 15,
+    "final_epoch": 15,
+    "metrics": {
+        "accuracy": 0.7168949771689498,
+        "f1_macro": 0.6679163240155391,
+        "f1_weighted": 0.6740555769003967,
+        "test_loss": 0.7109022736549377
+    },
+    "training_history": {
+        "final_train_loss": 0.8086891174316406,
+        "final_val_loss": 0.7109022736549377,
+        "final_train_accuracy": 0.6771036982536316,
+        "final_val_accuracy": 0.7168949842453003
+    }
+}

@@ -1,23 +1,15 @@
-============================================================
-  COS40007 Group Task 2 — Pipeline Metrics
-  Obesity Level Prediction System (Neural Network Demo)
-============================================================
-  Model name     : obesity_regression_net
-  Architecture   : 10 → 128 → 64 → 32 → 1 (ReLU)
-  Dataset        : Synthetic regression (N=600)
-  Features       : 10
-  Epochs trained : 12 / 15 (EarlyStopping)
-  Batch size     : 32
-  Split          : 70 / 15 / 15  (train / val / test)
-------------------------------------------------------------
-  TEST SET RESULTS
-  MSE            : 0.6670
-  RMSE           : 0.8167
-  MAE            : 0.6612
-  R²             : 0.9816
-------------------------------------------------------------
-  TRAINING SUMMARY
-  Final train loss    : 0.3207
-  Final val loss      : 0.9340
-  Best val loss (ESt) : 0.9139
-============================================================
+==================================================
+MODEL PERFORMANCE METRICS
+COS40007 Group Task 3 — Obesity Level Prediction
+==================================================
+Accuracy   : 0.7169
+F1 macro   : 0.6679
+F1 weighted: 0.6741
+==================================================
+
+TRAINING HISTORY
+==================================================
+Final Train Loss    : 0.8087
+Final Val Loss      : 0.7109
+Final Train Accuracy: 0.6771
+Final Val Accuracy  : 0.7169

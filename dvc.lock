@@ -1,0 +1,86 @@
+schema: '2.0'
+stages:
+  train:
+    cmd: python3 src/model.py
+    deps:
+    - path: params.yaml
+      hash: md5
+      md5: e1349c6c68d5733b39ca59708fafa5d5
+      size: 1418
+    - path: src/model.py
+      hash: md5
+      md5: 67d220bcc4518f906cf9776d36c95862
+      size: 12870
+    - path: test/test.csv
+      hash: md5
+      md5: 7b0c53df81decbfcaf9ad520f0e1d733
+      size: 81779
+    - path: train/train.csv
+      hash: md5
+      md5: 9e58639ba87e7b74647e93e928a403de
+      size: 190942
+    outs:
+    - path: artifacts/X_test_cnn.npy
+      hash: md5
+      md5: 8db58713cef6c4bebc4fbc380827fee2
+      size: 56192
+    - path: artifacts/feature_columns.json
+      hash: md5
+      md5: a3ccd0e8d4fb43b684aa354f30b7ab95
+      size: 568
+    - path: artifacts/scaler.pkl
+      hash: md5
+      md5: d43f58b16dff98ebf523a9c84eaefd0e
+      size: 999
+    - path: artifacts/training_history.json
+      hash: md5
+      md5: ed8e28d657344a6aa2aab5326105dc04
+      size: 1780
+    - path: artifacts/y_test.npy
+      hash: md5
+      md5: 7ed646690e9c132135a3bfef2986d329
+      size: 3632
+    - path: models/model.keras
+      hash: md5
+      md5: 4ca07312087abb56b5e37092bba80fc1
+      size: 1550114
+  evaluate:
+    cmd: python3 src/evaluate.py
+    deps:
+    - path: artifacts/X_test_cnn.npy
+      hash: md5
+      md5: 8db58713cef6c4bebc4fbc380827fee2
+      size: 56192
+    - path: artifacts/feature_columns.json
+      hash: md5
+      md5: a3ccd0e8d4fb43b684aa354f30b7ab95
+      size: 568
+    - path: artifacts/training_history.json
+      hash: md5
+      md5: ed8e28d657344a6aa2aab5326105dc04
+      size: 1780
+    - path: artifacts/y_test.npy
+      hash: md5
+      md5: 7ed646690e9c132135a3bfef2986d329
+      size: 3632
+    - path: models/model.keras
+      hash: md5
+      md5: 4ca07312087abb56b5e37092bba80fc1
+      size: 1550114
+    - path: params.yaml
+      hash: md5
+      md5: e1349c6c68d5733b39ca59708fafa5d5
+      size: 1418
+    - path: src/evaluate.py
+      hash: md5
+      md5: c9b75898f427d2f460cc98b5a619a622
+      size: 8497
+    - path: test/test.csv
+      hash: md5
+      md5: 7b0c53df81decbfcaf9ad520f0e1d733
+      size: 81779
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 5f69dffdc171f40a6b98499a84b80348
+      size: 592
