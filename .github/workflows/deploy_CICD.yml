@@ -1,0 +1,130 @@
+name: MLOps Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 0'    # every Sunday 2AM UTC
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: 'Number of training epochs'
+        required: false
+        default: '15'
+
+permissions:
+  contents: write
+
+jobs:
+  train-and-evaluate:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN }}
+
+      # ── Python setup ──────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # ── Cache pip dependencies ─────────────────────────────────────────────
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      # ── Install dependencies ───────────────────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── Configure DVC remote (DagsHub) ────────────────────────────────────
+      - name: Configure DVC remote (DagsHub)
+        run: |
+          dvc remote modify origin auth basic
+          dvc remote modify origin user ${{ secrets.DAGSHUB_USERNAME }}
+          dvc remote modify origin password ${{ secrets.DAGSHUB_TOKEN }}
+
+      # ── Pull all data ──────────────────────────────────────────────────────
+      - name: Pull all data
+        run: dvc pull --allow-missing
+
+      # ── Override epochs if provided via workflow_dispatch ──────────────────
+      - name: Override epochs if provided
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'EOF'
+          import yaml
+          with open("params.yaml") as f:
+              p = yaml.safe_load(f)
+          p["model"]["epochs"] = int("${{ github.event.inputs.epochs }}")
+          with open("params.yaml", "w") as f:
+              yaml.dump(p, f)
+          print(f"Epochs set to {p['model']['epochs']}")
+          EOF
+
+      # ── Reproduce DVC pipeline ─────────────────────────────────────────────
+      - name: Run DVC pipeline
+        run: dvc repro
+
+      # ── Push artefacts to DVC remote ──────────────────────────────────────
+      - name: Push artifacts to DVC remote
+        run: dvc push
+
+      # ── Show and compare metrics ───────────────────────────────────────────
+      - name: Show metrics
+        run: |
+          dvc metrics show
+          dvc metrics diff HEAD~1 || echo "No previous run to compare against"
+
+      # ── Commit dvc.lock and metrics ────────────────────────────────────────
+      - name: Commit dvc.lock and metrics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}
+          git add dvc.lock metrics.json
+          git diff --staged --quiet || git commit -m "chore: update dvc.lock and metrics [skip ci]"
+          git push
+
+      # ── Upload trained model ───────────────────────────────────────────────
+      - name: Upload trained model
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-model
+          path: models/model.keras
+          retention-days: 30
+
+      # ── Upload results ─────────────────────────────────────────────────────
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results
+          path: |
+            model_results.png
+            metrics.json
+            predictions_vs_actual.png
+            residuals_analysis.png
+            metrics.txt
+            model_summary.txt
+          retention-days: 30
+
+      # ── Post metrics as PR comment ─────────────────────────────────────────
+      - name: Post PR comment with metrics diff
+        if: github.event_name == 'pull_request'
+        run: |
+          METRICS=$(dvc metrics diff --md || echo "No metrics diff available")
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "## Metrics comparison
+          ${METRICS}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
