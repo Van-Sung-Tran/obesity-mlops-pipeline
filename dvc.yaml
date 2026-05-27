@@ -1,12 +1,12 @@
 stages:
   train:
-    cmd: python src/model.py       # train the model and save outputs
-    deps:                          # dependencies for this stage
+    cmd: python3 src/model.py # train the model and save outputs
+    deps: # dependencies for this stage
       - src/model.py
       - params.yaml
       - train/train.csv
       - test/test.csv
-    outs:                          # outputs (saved to DVC cache and remote)
+    outs: # outputs (saved to DVC cache and remote)
       - models/model.keras
       - artifacts/X_test_cnn.npy
       - artifacts/y_test.npy
@@ -14,9 +14,9 @@ stages:
       - artifacts/feature_columns.json
       - artifacts/scaler.pkl
 
-  evaluate:                        # evaluate the model on test set and save metrics/plots
-    cmd: python src/evaluate.py   # evaluate the model and save metrics/plots
-    deps:                          # dependencies for this stage
+  evaluate: # evaluate the model on test set and save metrics/plots
+    cmd: python3 src/evaluate.py # evaluate the model and save metrics/plots
+    deps: # dependencies for this stage
       - src/evaluate.py
       - models/model.keras
       - artifacts/X_test_cnn.npy
@@ -25,9 +25,9 @@ stages:
       - artifacts/feature_columns.json
       - test/test.csv
       - params.yaml
-    metrics:                       # metrics to save and track with DVC
+    metrics: # metrics to save and track with DVC
       - metrics.json:
-          cache: false             # don't store in DVC cache — overwrite each time
+          cache: false # don't store in DVC cache — overwrite each time
 
 params:
   - dvclive/params.yaml
