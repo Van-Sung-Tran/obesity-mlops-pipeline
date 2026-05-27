@@ -1,4 +1,10 @@
 tensorflow
 numpy
 matplotlib
-keras
+pandas
+seaborn
+scikit-learn
+dvc
+dvc-gdrive
+dvclive
+nvidia-ml-py
