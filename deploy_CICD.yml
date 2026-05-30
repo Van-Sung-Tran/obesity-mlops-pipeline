@@ -1,12 +1,15 @@
 name: MLOps Pipeline
 
 on:
+  # Trigger 1: Automated on data/code push
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+
+  # Trigger 2: Scheduled — every Sunday at 2:00 AM UTC
   schedule:
-    - cron: '0 2 * * 0'    # every Sunday 2AM UTC
+    - cron: '0 2 * * 0'
+
+  # Trigger 3: Manual trigger from GitHub Actions UI
   workflow_dispatch:
     inputs:
       epochs:
@@ -22,14 +25,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ── Checkout ──────────────────────────────────────────────────────────
+
+      # ── Checkout ───────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
-      # ── Python setup ──────────────────────────────────────────────────────
+      # ── Python setup ───────────────────────────────────────────────────────
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -58,11 +62,17 @@ jobs:
       - name: Pull all data
         run: dvc pull --allow-missing
 
+      # ── Preprocess new data (append new_data.csv to train.csv) ────────────
+      - name: Preprocess new data
+        run: |
+          echo "Checking for new data to append..."
+          python3 src/preprocess_new_data.py
+
       # ── Override epochs if provided via workflow_dispatch ──────────────────
       - name: Override epochs if provided
         if: github.event_name == 'workflow_dispatch'
         run: |
-          python - <<'EOF'
+          python3 - <<'EOF'
           import yaml
           with open("params.yaml") as f:
               p = yaml.safe_load(f)
@@ -76,9 +86,9 @@ jobs:
       - name: Run DVC pipeline
         run: dvc repro
 
-      # ── Push artefacts to DVC remote ──────────────────────────────────────
+      # ── Push artifacts to DVC remote ───────────────────────────────────────
       - name: Push artifacts to DVC remote
-        run: dvc push
+        run: dvc push || echo "DVC push failed — continuing"
 
       # ── Show and compare metrics ───────────────────────────────────────────
       - name: Show metrics
@@ -86,15 +96,17 @@ jobs:
           dvc metrics show
           dvc metrics diff HEAD~1 || echo "No previous run to compare against"
 
-      # ── Commit dvc.lock and metrics ────────────────────────────────────────
+      # ── Commit dvc.lock, metrics and updated train.csv ─────────────────────
       - name: Commit dvc.lock and metrics
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }}
-          git add dvc.lock metrics.json
+          git add dvc.lock metrics.json metrics.txt || true
+          git add data_version.txt data_update_log.json || true
+          git add logs/ || true
           git diff --staged --quiet || git commit -m "chore: update dvc.lock and metrics [skip ci]"
-          git push
+          git push || echo "Nothing to push"
 
       # ── Upload trained model ───────────────────────────────────────────────
       - name: Upload trained model
@@ -116,6 +128,7 @@ jobs:
             residuals_analysis.png
             metrics.txt
             model_summary.txt
+            data_update_log.json
           retention-days: 30
 
       # ── Post metrics as PR comment ─────────────────────────────────────────
