@@ -218,3 +218,52 @@ with open(METRICS_PATH, 'w', encoding='utf-8') as f:
 print(f"Updated: {METRICS_PATH} with model comparison")
 
 print("\nevaluate.py complete")
+
+# ── Confusion matrices for sklearn models ──────────────────────────────────────
+print("\nGenerating sklearn model plots...")
+import joblib
+
+for sk_name, fname in [("Decision Tree", "decision_tree"), ("Random Forest", "random_forest")]:
+    pkl_path = f"models/model_{fname}.pkl"
+    if not os.path.exists(pkl_path):
+        print(f"  {sk_name} model not found — skipping")
+        continue
+
+    clf = joblib.load(pkl_path)
+    X_test_flat = X_test_cnn.reshape(X_test_cnn.shape[0], -1)
+    y_pred_sk = clf.predict(X_test_flat)
+
+    cm_sk = confusion_matrix(y_test, y_pred_sk)
+    acc_sk = float(accuracy_score(y_test, y_pred_sk))
+    f1_sk  = float(f1_score(y_test, y_pred_sk, average="macro"))
+
+    fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+    fig.suptitle(f"COS40007 Group Task 3 — {sk_name}\nObesity Level Prediction",
+                 fontweight="bold", fontsize=13)
+
+    sns.heatmap(cm_sk, annot=True, fmt="d", cmap="Greens",
+                xticklabels=short, yticklabels=short,
+                ax=axes[0], linewidths=0.5)
+    axes[0].set_title(f"Confusion Matrix  |  Accuracy: {acc_sk:.3f}", fontweight="bold")
+    axes[0].set_xlabel("Predicted"); axes[0].set_ylabel("Actual")
+
+    report_sk = classification_report(y_test, y_pred_sk, target_names=label_classes, output_dict=True)
+    class_f1_sk = [report_sk[c]["f1-score"] for c in label_classes if c in report_sk]
+    colors_sk = ["#2E75B6" if v >= 0.8 else "#E05C2A" for v in class_f1_sk]
+    bars_sk = axes[1].barh(short, class_f1_sk, color=colors_sk, edgecolor="white")
+    axes[1].axvline(f1_sk, color="grey", ls="--", lw=1.5, label=f"Macro F1 = {f1_sk:.3f}")
+    axes[1].set_title("Per-Class F1 Score", fontweight="bold")
+    axes[1].set_xlabel("F1 Score"); axes[1].set_xlim(0, 1)
+    axes[1].legend(); axes[1].grid(True, alpha=0.3, axis="x")
+    for bar, val in zip(bars_sk, class_f1_sk):
+        axes[1].text(val + 0.01, bar.get_y() + bar.get_height() / 2,
+                     f"{val:.3f}", va="center", fontsize=9)
+
+    plt.tight_layout()
+    out = f"{fname}_evaluation.png"
+    plt.savefig(out, dpi=150, bbox_inches="tight")
+    plt.savefig(f"{artifacts_dir}/{fname}_evaluation.png", dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {out}")
+
+print("\nAll plots generated!")
