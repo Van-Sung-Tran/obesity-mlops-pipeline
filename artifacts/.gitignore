@@ -3,3 +3,4 @@
 /training_history.json
 /feature_columns.json
 /scaler.pkl
+/sklearn_metrics.json

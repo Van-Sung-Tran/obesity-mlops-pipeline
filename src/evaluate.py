@@ -184,4 +184,37 @@ with open(METRICS_PATH, 'w', encoding='utf-8') as f:
     json.dump(metrics_out, f, indent=4)
 print(f"Saved: {METRICS_PATH}")
 
+
+# ── Model comparison summary (CNN vs sklearn) ──────────────────────────────────
+print("\n" + "=" * 55)
+print("MODEL COMPARISON SUMMARY")
+print("=" * 55)
+
+import joblib
+
+all_results = [{"model_name": "1D CNN", "accuracy": accuracy, "f1_macro": f1_macro, "f1_weighted": f1_weighted}]
+
+# Load sklearn results if available
+sklearn_path = "artifacts/sklearn_metrics.json"
+if os.path.exists(sklearn_path):
+    with open(sklearn_path) as f:
+        sk_data = json.load(f)
+    for r in sk_data.get("models", []):
+        all_results.append(r)
+        print(f"  {r['model_name']:<20} Accuracy: {r['accuracy']:.4f}  F1 macro: {r['f1_macro']:.4f}")
+
+print(f"  {'1D CNN':<20} Accuracy: {accuracy:.4f}  F1 macro: {f1_macro:.4f}")
+
+# Best model
+best = max(all_results, key=lambda x: x["f1_macro"])
+print(f"\n  Best model: {best['model_name']} (F1 macro: {best['f1_macro']:.4f})")
+print("=" * 55)
+
+# Update metrics.json to include all model comparison
+metrics_out["model_comparison"] = all_results
+metrics_out["best_model"] = best["model_name"]
+with open(METRICS_PATH, 'w', encoding='utf-8') as f:
+    json.dump(metrics_out, f, indent=4)
+print(f"Updated: {METRICS_PATH} with model comparison")
+
 print("\nevaluate.py complete")

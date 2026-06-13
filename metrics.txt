@@ -2,14 +2,14 @@
 MODEL PERFORMANCE METRICS
 COS40007 Group Task 3 — Obesity Level Prediction
 ==================================================
-Accuracy   : 0.7169
-F1 macro   : 0.6679
-F1 weighted: 0.6741
+Accuracy   : 0.7534
+F1 macro   : 0.7244
+F1 weighted: 0.7298
 ==================================================
 
 TRAINING HISTORY
 ==================================================
-Final Train Loss    : 0.8087
-Final Val Loss      : 0.7109
+Final Train Loss    : 0.7863
+Final Val Loss      : 0.6808
 Final Train Accuracy: 0.6771
-Final Val Accuracy  : 0.7169
+Final Val Accuracy  : 0.7534

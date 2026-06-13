@@ -9,8 +9,8 @@ stages:
       size: 1418
     - path: src/model.py
       hash: md5
-      md5: 67d220bcc4518f906cf9776d36c95862
-      size: 12870
+      md5: 7bc7300e5912f01d26ef7ca808d285a1
+      size: 16861
     - path: test/test.csv
       hash: md5
       md5: 7b0c53df81decbfcaf9ad520f0e1d733
@@ -32,18 +32,30 @@ stages:
       hash: md5
       md5: d43f58b16dff98ebf523a9c84eaefd0e
       size: 999
+    - path: artifacts/sklearn_metrics.json
+      hash: md5
+      md5: caa9681c3a729ab48f9cce4a1de43b23
+      size: 3288
     - path: artifacts/training_history.json
       hash: md5
-      md5: ed8e28d657344a6aa2aab5326105dc04
-      size: 1780
+      md5: 379f7599876418be4b820e6bb6780ed9
+      size: 1772
     - path: artifacts/y_test.npy
       hash: md5
       md5: 7ed646690e9c132135a3bfef2986d329
       size: 3632
     - path: models/model.keras
       hash: md5
-      md5: 4ca07312087abb56b5e37092bba80fc1
+      md5: d5582c32fb71449881ed5bec12cfbc36
       size: 1550114
+    - path: models/model_decision_tree.pkl
+      hash: md5
+      md5: 622e10a19b3f80ea318a06aa7fdde6cc
+      size: 16353
+    - path: models/model_random_forest.pkl
+      hash: md5
+      md5: 72335e3b1b1d3156ed1e34c1a3f93203
+      size: 3104769
   evaluate:
     cmd: python3 src/evaluate.py
     deps:
@@ -57,15 +69,15 @@ stages:
       size: 568
     - path: artifacts/training_history.json
       hash: md5
-      md5: ed8e28d657344a6aa2aab5326105dc04
-      size: 1780
+      md5: 379f7599876418be4b820e6bb6780ed9
+      size: 1772
     - path: artifacts/y_test.npy
       hash: md5
       md5: 7ed646690e9c132135a3bfef2986d329
       size: 3632
     - path: models/model.keras
       hash: md5
-      md5: 4ca07312087abb56b5e37092bba80fc1
+      md5: d5582c32fb71449881ed5bec12cfbc36
       size: 1550114
     - path: params.yaml
       hash: md5
@@ -73,8 +85,8 @@ stages:
       size: 1418
     - path: src/evaluate.py
       hash: md5
-      md5: c9b75898f427d2f460cc98b5a619a622
-      size: 8497
+      md5: 8962fdf2d160d3795a08c8bc06ad2994
+      size: 9752
     - path: test/test.csv
       hash: md5
       md5: 7b0c53df81decbfcaf9ad520f0e1d733
@@ -82,5 +94,5 @@ stages:
     outs:
     - path: metrics.json
       hash: md5
-      md5: 5f69dffdc171f40a6b98499a84b80348
-      size: 592
+      md5: 994cba3c9137c2b45cc7a12f3de4e983
+      size: 4114
