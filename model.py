@@ -275,4 +275,94 @@ with open('data_info.json', 'w', encoding='utf-8') as f:
     json.dump(data_info, f, indent=4)
 print("Saved: data_info.json")
 
-print("\nmodel.py complete — run evaluate.py next")
+
+# ── SECOND MODEL: Decision Tree & Random Forest ────────────────────────────────
+print("\n" + "=" * 50)
+print("SECOND MODEL — Decision Tree & Random Forest")
+print("Obesity Level Prediction — COS40007 Group Task 3")
+print("=" * 50)
+
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    accuracy_score, f1_score, classification_report, confusion_matrix
+)
+
+# Flatten CNN arrays back to 2D for sklearn
+X_train_flat = X_train_cnn.reshape(X_train_cnn.shape[0], -1)
+X_test_flat  = X_test_cnn.reshape(X_test_cnn.shape[0], -1)
+
+sklearn_results = []
+
+for sk_name, clf in [
+    ("Decision Tree", DecisionTreeClassifier(
+        max_depth=15, min_samples_split=5,
+        min_samples_leaf=2, random_state=SEED
+    )),
+    ("Random Forest", RandomForestClassifier(
+        n_estimators=100, max_depth=15,
+        min_samples_split=5, random_state=SEED, n_jobs=-1
+    )),
+]:
+    print(f"\nTraining {sk_name}...")
+    clf.fit(X_train_flat, y_train)
+    y_pred = clf.predict(X_test_flat)
+    acc    = float(accuracy_score(y_test, y_pred))
+    f1_mac = float(f1_score(y_test, y_pred, average="macro"))
+    f1_wt  = float(f1_score(y_test, y_pred, average="weighted"))
+    print(f"  Accuracy : {acc:.4f}")
+    print(f"  F1 macro : {f1_mac:.4f}")
+    print(classification_report(y_test, y_pred, target_names=le_target.classes_))
+    fname = sk_name.lower().replace(" ", "_")
+    joblib.dump(clf, f"models/model_{fname}.pkl")
+    print(f"Saved: models/model_{fname}.pkl")
+    sklearn_results.append({
+        "model_name": sk_name, "accuracy": acc,
+        "f1_macro": f1_mac, "f1_weighted": f1_wt,
+        "confusion_matrix": confusion_matrix(y_test, y_pred).tolist(),
+    })
+
+# Save sklearn metrics
+with open("artifacts/sklearn_metrics.json", "w") as f:
+    json.dump({"models": sklearn_results}, f, indent=4)
+print("Saved: artifacts/sklearn_metrics.json")
+
+# Model comparison plot
+cnn_pred = model.predict(X_test_cnn, verbose=0).argmax(axis=1)
+cnn_acc  = float(accuracy_score(y_test, cnn_pred))
+cnn_f1   = float(f1_score(y_test, cnn_pred, average="macro"))
+all_models = [{"model_name": "1D CNN", "accuracy": cnn_acc, "f1_macro": cnn_f1}] + sklearn_results
+names    = [r["model_name"] for r in all_models]
+acc_vals = [r["accuracy"]   for r in all_models]
+f1_vals  = [r["f1_macro"]   for r in all_models]
+x = np.arange(len(names)); width = 0.35
+fig, ax = plt.subplots(figsize=(10, 6))
+fig.suptitle("COS40007 Group Task 3 — Model Comparison\n1D CNN vs Decision Tree vs Random Forest",
+             fontweight="bold", fontsize=13)
+bars1 = ax.bar(x - width/2, acc_vals, width, label="Accuracy",  color="#2E75B6", edgecolor="white")
+bars2 = ax.bar(x + width/2, f1_vals,  width, label="F1 Macro",  color="#E05C2A", edgecolor="white")
+ax.set_xticks(x); ax.set_xticklabels(names, fontsize=11)
+ax.set_ylabel("Score"); ax.set_ylim(0, 1.0); ax.legend(); ax.grid(True, alpha=0.3, axis="y")
+for bars in [bars1, bars2]:
+    for bar in bars:
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                f"{bar.get_height():.3f}", ha="center", fontsize=9, fontweight="bold")
+plt.tight_layout()
+plt.savefig("model_comparison.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"{artifacts_dir}/model_comparison.png", dpi=150, bbox_inches="tight")
+plt.close()
+print("Saved: model_comparison.png")
+
+# Save comparison summary
+best = max(all_models, key=lambda x: x["f1_macro"])
+with open("model_comparison.txt", "w") as f:
+    f.write("=" * 55 + "\n")
+    f.write("  COS40007 Group Task 3 — Model Comparison\n")
+    f.write("=" * 55 + "\n\n")
+    for r in all_models:
+        f.write(f"  {r['model_name']:<20} Accuracy: {r['accuracy']:.4f}  F1 macro: {r['f1_macro']:.4f}\n")
+    f.write(f"\n  Best model: {best['model_name']} (F1 macro: {best['f1_macro']:.4f})\n")
+    f.write("=" * 55 + "\n")
+print("Saved: model_comparison.txt")
+
+print("\nmodel.py complete — all models trained successfully!")
